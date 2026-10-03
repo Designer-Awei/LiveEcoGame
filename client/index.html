@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no,viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>🌿 弹幕生态系统</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <!-- 顶部状态栏（叠在画面上） -->
+  <header id="topBar">
+    <span id="roundNum">第1局</span>
+    <span id="timer">00:00</span>
+    <div class="global-events" id="globalEvents"></div>
+    <span>👁 <span id="viewerCount">0</span></span>
+  </header>
+
+  <!-- 上板块 -->
+  <section class="biome-panel" id="panelTop">
+    <canvas id="canvasTop"></canvas>
+    <div class="biome-badge"><span class="badge-emoji" id="emojiTop"></span><span class="badge-name" id="nameTop"></span></div>
+    <div class="biome-score-float"><span class="score-num" id="scoreTop">0</span></div>
+    <div class="biome-events-float" id="tickerTop"></div>
+    <div class="biome-hud" id="statsTop"></div>
+    <div class="biome-creatures-float" id="creaturesTop"></div>
+  </section>
+
+  <!-- VS分隔 -->
+  <div class="vs-bar">
+    <span class="vs-label">VS</span>
+    <div class="vs-progress"><div id="vsFill" class="vs-fill"></div></div>
+    <span id="vsInfo" class="vs-info">持平</span>
+  </div>
+
+  <!-- 下板块 -->
+  <section class="biome-panel" id="panelBottom">
+    <canvas id="canvasBottom"></canvas>
+    <div class="biome-badge"><span class="badge-emoji" id="emojiBottom"></span><span class="badge-name" id="nameBottom"></span></div>
+    <div class="biome-score-float"><span class="score-num" id="scoreBottom">0</span></div>
+    <div class="biome-events-float" id="tickerBottom"></div>
+    <div class="biome-hud" id="statsBottom"></div>
+    <div class="biome-creatures-float" id="creaturesBottom"></div>
+  </section>
+
+  <!-- 底部操作栏 -->
+  <footer id="bottomBar">
+    <div class="bottom-left">
+      <div class="faction-select" id="factionSelect">
+        <button class="faction-btn" id="btnTop"></button>
+        <button class="faction-btn" id="btnBottom"></button>
+      </div>
+      <div class="input-row" id="inputRow" style="display:none;">
+        <span class="my-faction" id="myFaction"></span>
+        <input type="text" id="chatInput" placeholder="下雨 / 投放狮子 / 地震..." autocomplete="off">
+        <button id="sendBtn">发送</button>
+      </div>
+      <div class="quick-cmds">
+        <button data-cmd="下雨">🌧️</button>
+        <button data-cmd="晴天">☀️</button>
+        <button data-cmd="投放兔子">🐰</button>
+        <button data-cmd="投放狼">🐺</button>
+        <button data-cmd="地震">🌋</button>
+        <button data-cmd="进化">🧬</button>
+        <button data-cmd="祝福">✨</button>
+        <button data-cmd="丰收">🌿</button>
+      </div>
+    </div>
+    <div class="bottom-right">
+      <button class="rules-btn" id="rulesBtn">📋</button>
+      <button class="lb-btn" id="lbBtn">🏆</button>
+    </div>
+  </footer>
+
+  <!-- 弹窗 -->
+  <div id="rulesModal" class="modal" style="display:none;">
+    <div class="modal-content">
+      <div class="modal-header"><h2>🎮 玩法说明</h2><button class="modal-close" onclick="document.getElementById('rulesModal').style.display='none'">✕</button></div>
+      <div class="rg"><div class="rl">🌤️ 天气（免费）</div><div class="rt">下雨 晴天 暴风雪 干旱 热浪</div></div>
+      <div class="rg"><div class="rl">🐾 投放生物</div><div class="rt">兔子 狼 鹰 鹿 鱼 蛇 蝴蝶 猴子 狮子 恐龙 凤凰</div></div>
+      <div class="rg"><div class="rl">💥 灾害（Lv.10+）</div><div class="rt">地震 洪水 瘟疫 蝗灾 火山喷发</div></div>
+      <div class="rg"><div class="rl">🧬 增益</div><div class="rt">进化突变 神圣祝福 资源涌现</div></div>
+      <div class="rg"><div class="rl">🎁 礼物加权</div><div class="rt">送礼↑权重↑ 事件更强更频繁 解锁高级事件</div></div>
+      <div class="rg"><div class="rl">🏆 等级</div><div class="rt">新芽→学徒→守护者→大师→钻石→创世神</div></div>
+    </div>
+  </div>
+
+  <div id="lbModal" class="modal" style="display:none;">
+    <div class="modal-content">
+      <div class="modal-header"><h2>🏆 生态贡献者排行</h2><button class="modal-close" onclick="document.getElementById('lbModal').style.display='none'">✕</button></div>
+      <div id="lbFullList"></div>
+    </div>
+  </div>
+
+  <div id="notifyContainer"></div>
+  <script type="module" src="/js/app.js"></script>
+</body>
+</html>

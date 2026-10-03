@@ -1,0 +1,17 @@
+{
+  "name": "danmaku-ecosystem",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "弹幕生态系统 - 直播互动生态对抗游戏",
+  "scripts": {
+    "start": "node server/index.mjs",
+    "dev": "node --watch server/index.mjs"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "dependencies": {
+    "better-sqlite3": "^13.0.3"
+  }
+}
