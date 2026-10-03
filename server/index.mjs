@@ -2,7 +2,7 @@
 // 弹幕生态系统 · 服务端主入口
 // ============================================================
 import { createServer } from 'http';
-import { readFile, readdir } from 'fs/promises';
+import { readFile } from 'fs/promises';
 import { join, extname } from 'path';
 import { fileURLToPath } from 'url';
 import { Ecosystem } from './ecosystem.mjs';
@@ -79,18 +79,16 @@ function gameTick() {
 
   if (totalViewers === 0) {
     state.aiActive = true;
-    // 每30秒AI自动触发小事件
     if (state.elapsed % 30 === 0) {
       const idx = Math.random() < 0.5 ? 0 : 1;
       const ev = eventEngine.randomSmallEvent();
       applyEvent(idx, ev, '🤖自然');
     }
   } else {
-    // 有人时降低AI频率
     state.aiActive = totalViewers < 3;
   }
 
-  // 全局随机事件（每60秒，有人时降低频率）
+  // 全局随机事件
   const interval = totalViewers > 0 ? state.autoEventInterval * 2 : state.autoEventInterval;
   if (state.elapsed % interval === 0) {
     const ev = eventEngine.randomGlobalEvent();
@@ -206,7 +204,21 @@ function getAbilityName(ability) {
 }
 
 // ── 加载Mock数据 ──
-userSystem.seedMockData();
+userSystem._ready.then(() => {
+  userSystem.seedMockData();
+  newGame();
+  setInterval(gameTick, state.tickRate);
+  server.listen(PORT, () => {
+    console.log(`\n🌿 LiveEcoGame 已启动`);
+    console.log(`   管理页面: http://127.0.0.1:${PORT}/`);
+    console.log(`   调试控制台: http://127.0.0.1:${PORT}/debug.html`);
+    console.log(`   游戏状态: http://127.0.0.1:${PORT}/api/state`);
+    console.log(`   调试API: http://127.0.0.1:${PORT}/api/debug/state\n`);
+  });
+}).catch(err => {
+  console.error('启动失败:', err);
+  process.exit(1);
+});
 
 // ── SSE 客户端 ──
 const sseClients = new Set();
@@ -245,7 +257,7 @@ function broadcastState() {
   }
 }
 
-// ── HTTP + WS ──
+// ── HTTP + SSE ──
 const MIME = {
   '.html': 'text/html',
   '.css': 'text/css',
@@ -259,6 +271,13 @@ const MIME = {
 };
 
 const server = createServer(async (req, res) => {
+  // CORS
+  if (req.method === 'OPTIONS') {
+    res.writeHead(204, { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'GET,POST', 'Access-Control-Allow-Headers': 'Content-Type' });
+    res.end();
+    return;
+  }
+
   // API 路由
   if (req.url === '/api/state') {
     res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
@@ -294,24 +313,42 @@ const server = createServer(async (req, res) => {
       const { faction, text, name, platform, platformUid } = JSON.parse(body);
       const idx = state.factions.findIndex(f => f.biome.id === faction || f.biome.name === faction);
       if (idx >= 0) {
-        const ev = danmaku.parse(text);
-        if (ev) {
-          // 记录用户操作
-          let user = null;
-          if (platform && platformUid) {
-            user = userSystem.recordMessage(platform, platformUid, name);
-            // 检查用户权限
-            const levelInfo = userSystem.getLevelInfo(user.total_weight);
+        // 获取用户信息
+        let userInfo = null;
+        if (platform && platformUid) {
+          userInfo = userSystem.recordMessage(platform, platformUid, name);
+        }
+
+        // 使用新的带冷却的事件路由
+        const result = danmaku.parse(text, userInfo);
+
+        if (result.blocked) {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ ok: false, reason: result.reason }));
+          return;
+        }
+
+        if (result.event) {
+          const ev = result.event;
+
+          // 检查用户权限（等级限制）
+          if (userInfo) {
+            const levelInfo = userSystem.getLevelInfo(userInfo.total_weight);
             const eventAbility = getRequiredAbility(ev.type);
-            if (eventAbility && !JSON.parse(user.abilities).includes(eventAbility)) {
+            if (eventAbility && !JSON.parse(userInfo.abilities).includes(eventAbility)) {
               res.writeHead(200, { 'Content-Type': 'application/json' });
-              res.end(JSON.stringify({ ok: false, reason: `需要 ${getAbilityName(eventAbility)} 权限`, userLevel: user.level, userTitle: user.title }));
+              res.end(JSON.stringify({ ok: false, reason: `需要 ${getAbilityName(eventAbility)} 权限`, userLevel: userInfo.level, userTitle: userInfo.title }));
               return;
             }
           }
-          applyEvent(idx, ev, `👤${name || '匿名'}`, user);
+
+          applyEvent(idx, ev, `👤${name || '匿名'}`, userInfo);
           res.writeHead(200, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ ok: true, event: ev, user: user ? { level: user.level, title: user.title, weight: user.total_weight } : null }));
+          res.end(JSON.stringify({
+            ok: true,
+            event: ev,
+            user: userInfo ? { level: userInfo.level, title: userInfo.title, weight: userInfo.total_weight } : null,
+          }));
         } else {
           res.writeHead(200, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ ok: false, reason: '未识别的指令' }));
@@ -381,6 +418,79 @@ const server = createServer(async (req, res) => {
     return;
   }
 
+  // ── 调试API ──
+  if (req.url?.startsWith('/api/debug/') && req.method === 'GET') {
+    const action = req.url.split('/')[3];
+    res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+
+    if (action === 'state') {
+      // 完整调试状态
+      res.end(JSON.stringify({
+        game: state,
+        cooldowns: danmaku.getCooldownStatus({ platform: 'debug', platform_uid: 'debug' }),
+        creatureCounts: state.factions.map(f => ({
+          biome: f.biome.name,
+          creatures: f.eco.getCreatureSummary(),
+          stats: f.eco.getStats(),
+        })),
+      }));
+    } else if (action === 'trigger' && req.method === 'GET') {
+      // 调试触发事件: /api/debug/trigger?faction=0&type=weather&name=降雨
+      const url = new URL(req.url, 'http://localhost');
+      const factionIdx = parseInt(url.searchParams.get('faction') || '0');
+      const evType = url.searchParams.get('type') || 'weather';
+      const evName = url.searchParams.get('name') || '降雨';
+
+      // 查找匹配事件
+      const allEvents = [...COMMON_KEYWORDS, ...RARE_KEYWORDS];
+      let found = null;
+      for (const kw of allEvents) {
+        if (kw.event.type === evType && kw.event.name === evName) {
+          found = kw.event;
+          break;
+        }
+      }
+      if (!found) {
+        // 从eventEngine找
+        for (const ev of [...eventEngine.smallEvents, ...eventEngine.globalEvents]) {
+          if (ev.name === evName || ev.type === evType) {
+            found = ev;
+            break;
+          }
+        }
+      }
+
+      if (found && state.factions[factionIdx]) {
+        applyEvent(factionIdx, found, '🔧调试');
+        res.end(JSON.stringify({ ok: true, event: found }));
+      } else {
+        res.end(JSON.stringify({ ok: false, reason: '事件或阵营未找到' }));
+      }
+    } else if (action === 'setweight') {
+      // 调试设置用户权重: /api/debug/setweight?weight=1000
+      const url = new URL(req.url, 'http://localhost');
+      const weight = parseFloat(url.searchParams.get('weight') || '100');
+      const user = userSystem.recordMessage('debug', 'debug_user', '调试员');
+      // 手动更新权重
+      const levelInfo = userSystem.getLevelInfo(weight);
+      userSystem._updateUser.run(
+        levelInfo.level, levelInfo.title, weight, weight,
+        0, user.message_count, user.games_played,
+        user.best_score, user.best_rank, user.streak, user.max_streak,
+        JSON.stringify(levelInfo.abilities), user.id
+      );
+      res.end(JSON.stringify({ ok: true, level: levelInfo.level, title: levelInfo.title, weight, abilities: levelInfo.abilities }));
+    } else if (action === 'reset') {
+      // 重置游戏
+      state.phase = 'ended';
+      setTimeout(() => newGame(), 1000);
+      res.end(JSON.stringify({ ok: true, message: '游戏将在1秒后重启' }));
+    } else {
+      res.end(JSON.stringify({ error: '未知调试命令' }));
+    }
+    return;
+  }
+
   // SSE 实时推送
   if (req.url === '/api/stream') {
     res.writeHead(200, {
@@ -410,11 +520,4 @@ const server = createServer(async (req, res) => {
 });
 
 // ── 启动 ──
-newGame();
-setInterval(gameTick, state.tickRate);
-
-server.listen(PORT, () => {
-  console.log(`\n🌿 弹幕生态系统 已启动`);
-  console.log(`   管理页面: http://127.0.0.1:${PORT}/`);
-  console.log(`   游戏状态: http://127.0.0.1:${PORT}/api/state\n`);
-});
+// 由 userSystem._ready 回调触发

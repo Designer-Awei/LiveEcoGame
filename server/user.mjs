@@ -1,7 +1,8 @@
 // ============================================================
-// 用户系统 · 权重 + 等级 + 持久化
+// 用户系统 · 权重 + 等级 + 持久化（sql.js 版本）
 // ============================================================
-import Database from 'better-sqlite3';
+import initSqlJs from 'sql.js';
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
 import { join } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -20,14 +21,36 @@ export const LEVELS = [
 
 export class UserSystem {
   constructor() {
-    this.db = new Database(DB_PATH);
-    this.db.pragma('journal_mode = WAL');
+    this.db = null;
+    this._ready = this._init();
+  }
+
+  async _init() {
+    const SQL = await initSqlJs();
+
+    // 读取已有数据库或创建新库
+    if (existsSync(DB_PATH)) {
+      const buffer = readFileSync(DB_PATH);
+      this.db = new SQL.Database(buffer);
+    } else {
+      // 确保 data 目录存在
+      const dataDir = join(__dirname, '..', 'data');
+      if (!existsSync(dataDir)) mkdirSync(dataDir, { recursive: true });
+      this.db = new SQL.Database();
+    }
+
     this._initTables();
     this._prepareStatements();
   }
 
+  _save() {
+    if (!this.db) return;
+    const data = this.db.export();
+    writeFileSync(DB_PATH, Buffer.from(data));
+  }
+
   _initTables() {
-    this.db.exec(`
+    this.db.run(`
       CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         platform TEXT NOT NULL,
@@ -47,10 +70,16 @@ export class UserSystem {
         max_streak INTEGER DEFAULT 0,
         abilities TEXT DEFAULT '["weather","basic_creature"]',
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        last_seen DATETIME DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE(platform, platform_uid)
-      );
+        last_seen DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
 
+    // 检查是否需要添加 UNIQUE 约束（sql.js 不支持 IF NOT EXISTS 于约束）
+    try {
+      this.db.run(`CREATE UNIQUE INDEX IF NOT EXISTS idx_users_platform_uid ON users(platform, platform_uid)`);
+    } catch {}
+
+    this.db.run(`
       CREATE TABLE IF NOT EXISTS game_contributions (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER REFERENCES users(id),
@@ -62,8 +91,10 @@ export class UserSystem {
         rank INTEGER,
         reward_points INTEGER DEFAULT 0,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      );
+      )
+    `);
 
+    this.db.run(`
       CREATE TABLE IF NOT EXISTS gifts (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER REFERENCES users(id),
@@ -72,8 +103,10 @@ export class UserSystem {
         gift_value REAL NOT NULL,
         weight_added REAL NOT NULL,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      );
+      )
+    `);
 
+    this.db.run(`
       CREATE TABLE IF NOT EXISTS game_history (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         round_num INTEGER,
@@ -85,90 +118,77 @@ export class UserSystem {
         total_viewers INTEGER,
         started_at DATETIME,
         ended_at DATETIME
-      );
-
-      CREATE TABLE IF NOT EXISTS streamers (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        platform TEXT NOT NULL,
-        platform_uid TEXT NOT NULL,
-        nickname TEXT,
-        room_id TEXT,
-        api_key TEXT UNIQUE,
-        total_games INTEGER DEFAULT 0,
-        total_viewers INTEGER DEFAULT 0,
-        prize_pool REAL DEFAULT 0,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE(platform, platform_uid)
-      );
+      )
     `);
+
+    this._save();
   }
 
   _prepareStatements() {
-    this._getUser = this.db.prepare(`
-      SELECT * FROM users WHERE platform = ? AND platform_uid = ?
-    `);
+    // sql.js uses db.run() and db.exec() directly
+  }
 
-    this._createUser = this.db.prepare(`
-      INSERT INTO users (platform, platform_uid, nickname, avatar)
-      VALUES (?, ?, ?, ?)
-    `);
+  // ── 查询辅助 ──
+  _queryOne(sql, params = []) {
+    const stmt = this.db.prepare(sql);
+    stmt.bind(params);
+    if (stmt.step()) {
+      const cols = stmt.getColumnNames();
+      const vals = stmt.get();
+      stmt.free();
+      const row = {};
+      cols.forEach((c, i) => row[c] = vals[i]);
+      return row;
+    }
+    stmt.free();
+    return null;
+  }
 
-    this._updateUser = this.db.prepare(`
-      UPDATE users SET
-        level = ?, title = ?, total_weight = ?, current_weight = ?,
-        gift_value = ?, message_count = ?, games_played = ?,
-        best_score = ?, best_rank = ?, streak = ?, max_streak = ?,
-        abilities = ?, last_seen = CURRENT_TIMESTAMP
-      WHERE id = ?
-    `);
+  _queryAll(sql, params = []) {
+    const results = [];
+    const stmt = this.db.prepare(sql);
+    stmt.bind(params);
+    while (stmt.step()) {
+      const cols = stmt.getColumnNames();
+      const vals = stmt.get();
+      const row = {};
+      cols.forEach((c, i) => row[c] = vals[i]);
+      results.push(row);
+    }
+    stmt.free();
+    return results;
+  }
 
-    this._addContribution = this.db.prepare(`
-      INSERT INTO game_contributions (user_id, game_id, faction, contribution_score, events_triggered, creatures_added, rank, reward_points)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-
-    this._addGift = this.db.prepare(`
-      INSERT INTO gifts (user_id, streamer_id, gift_name, gift_value, weight_added)
-      VALUES (?, ?, ?, ?, ?)
-    `);
-
-    this._getLeaderboard = this.db.prepare(`
-      SELECT id, platform, platform_uid, nickname, avatar, level, title,
-             total_weight, gift_value, message_count, games_played,
-             best_score, streak, max_streak
-      FROM users ORDER BY total_weight DESC LIMIT ?
-    `);
-
-    this._getTopContributors = this.db.prepare(`
-      SELECT u.id, u.nickname, u.avatar, u.level, u.title, u.total_weight,
-             gc.contribution_score, gc.faction
-      FROM game_contributions gc
-      JOIN users u ON u.id = gc.user_id
-      WHERE gc.game_id = ?
-      ORDER BY gc.contribution_score DESC LIMIT ?
-    `);
-
-    this._getGameHistory = this.db.prepare(`
-      SELECT * FROM game_history ORDER BY id DESC LIMIT ?
-    `);
+  _run(sql, params = []) {
+    this.db.run(sql, params);
   }
 
   // ── 获取或创建用户 ──
   getOrCreateUser(platform, platformUid, nickname, avatar) {
-    let user = this._getUser.get(platform, platformUid);
+    let user = this._queryOne(
+      'SELECT * FROM users WHERE platform = ? AND platform_uid = ?',
+      [platform, platformUid]
+    );
     if (!user) {
-      this._createUser.run(platform, platformUid, nickname || `用户${platformUid.slice(-4)}`, avatar || '');
-      user = this._getUser.get(platform, platformUid);
+      this._run(
+        'INSERT INTO users (platform, platform_uid, nickname, avatar) VALUES (?, ?, ?, ?)',
+        [platform, platformUid, nickname || `用户${platformUid.slice(-4)}`, avatar || '']
+      );
+      this._save();
+      user = this._queryOne(
+        'SELECT * FROM users WHERE platform = ? AND platform_uid = ?',
+        [platform, platformUid]
+      );
     }
     return user;
   }
 
   // ── 计算权重 ──
   calculateWeight(user) {
-    const baseWeight = user.level * 10;
-    const giftWeight = user.gift_value * 10;
-    const activeWeight = Math.min(user.message_count * 0.1 + user.games_played * 2, 500);
-    const gloryWeight = Math.min(user.streak * 5 + (user.best_rank <= 3 && user.best_rank > 0 ? 100 : 0), 300);
+    const baseWeight = (user.level || 1) * 10;
+    const giftWeight = (user.gift_value || 0) * 10;
+    const activeWeight = Math.min((user.message_count || 0) * 0.1 + (user.games_played || 0) * 2, 500);
+    const gloryWeight = Math.min((user.streak || 0) * 5 + ((user.best_rank || 0) <= 3 && (user.best_rank || 0) > 0 ? 100 : 0), 300);
     return baseWeight + giftWeight + activeWeight + gloryWeight;
   }
 
@@ -188,94 +208,87 @@ export class UserSystem {
     const newWeight = this.calculateWeight(user);
     const levelInfo = this.getLevelInfo(newWeight);
 
-    this._updateUser.run(
-      levelInfo.level, levelInfo.title, newWeight, user.current_weight + 1,
-      user.gift_value, user.message_count + 1, user.games_played,
-      user.best_score, user.best_rank, user.streak, user.max_streak,
-      JSON.stringify(levelInfo.abilities), user.id
+    this._run(
+      `UPDATE users SET
+        level = ?, title = ?, total_weight = ?, current_weight = ?,
+        gift_value = ?, message_count = ?, games_played = ?,
+        best_score = ?, best_rank = ?, streak = ?, max_streak = ?,
+        abilities = ?, last_seen = CURRENT_TIMESTAMP
+      WHERE id = ?`,
+      [
+        levelInfo.level, levelInfo.title, newWeight, (user.current_weight || 0) + 1,
+        user.gift_value || 0, (user.message_count || 0) + 1, user.games_played || 0,
+        user.best_score || 0, user.best_rank || 0, user.streak || 0, user.max_streak || 0,
+        JSON.stringify(levelInfo.abilities), user.id
+      ]
     );
+    this._save();
 
-    return this._getUser.get(platform, platformUid);
+    return this._queryOne(
+      'SELECT * FROM users WHERE platform = ? AND platform_uid = ?',
+      [platform, platformUid]
+    );
   }
 
   // ── 记录礼物 ──
   recordGift(platform, platformUid, nickname, giftName, giftValue) {
     const user = this.getOrCreateUser(platform, platformUid, nickname);
     const weightAdded = giftValue * 10;
-    const newGiftValue = user.gift_value + giftValue;
+    const newGiftValue = (user.gift_value || 0) + giftValue;
     const newWeight = this.calculateWeight({ ...user, gift_value: newGiftValue });
     const levelInfo = this.getLevelInfo(newWeight);
 
-    this._addGift.run(user.id, 'local', giftName, giftValue, weightAdded);
-    this._updateUser.run(
-      levelInfo.level, levelInfo.title, newWeight, user.current_weight + weightAdded,
-      newGiftValue, user.message_count, user.games_played,
-      user.best_score, user.best_rank, user.streak, user.max_streak,
-      JSON.stringify(levelInfo.abilities), user.id
+    this._run(
+      'INSERT INTO gifts (user_id, streamer_id, gift_name, gift_value, weight_added) VALUES (?, ?, ?, ?, ?)',
+      [user.id, 'local', giftName, giftValue, weightAdded]
     );
+    this._run(
+      `UPDATE users SET
+        level = ?, title = ?, total_weight = ?, current_weight = ?,
+        gift_value = ?, message_count = ?, games_played = ?,
+        best_score = ?, best_rank = ?, streak = ?, max_streak = ?,
+        abilities = ?, last_seen = CURRENT_TIMESTAMP
+      WHERE id = ?`,
+      [
+        levelInfo.level, levelInfo.title, newWeight, (user.current_weight || 0) + weightAdded,
+        newGiftValue, user.message_count || 0, user.games_played || 0,
+        user.best_score || 0, user.best_rank || 0, user.streak || 0, user.max_streak || 0,
+        JSON.stringify(levelInfo.abilities), user.id
+      ]
+    );
+    this._save();
 
-    return this._getUser.get(platform, platformUid);
-  }
-
-  // ── 记录本局贡献 ──
-  recordGameContribution(platform, platformUid, gameId, faction, score, eventsCount, creaturesCount) {
-    const user = this.getOrCreateUser(platform, platformUid);
-    this._addContribution.run(user.id, gameId, faction, score, eventsCount, creaturesCount, 0, 0);
-  }
-
-  // ── 结算本局 ──
-  settleGame(gameId, winner, leftScore, rightScore, totalViewers) {
-    // 更新参与者的游戏局数和连胜
-    const contributors = this.db.prepare(`
-      SELECT DISTINCT user_id FROM game_contributions WHERE game_id = ?
-    `).all(gameId);
-
-    for (const c of contributors) {
-      const user = this.db.prepare('SELECT * FROM users WHERE id = ?').get(c.user_id);
-      if (!user) continue;
-
-      const isWinner = winner === this.db.prepare(`
-        SELECT faction FROM game_contributions WHERE game_id = ? AND user_id = ?
-      `).get(gameId, user.id)?.faction;
-
-      const newStreak = isWinner ? user.streak + 1 : 0;
-      const newMaxStreak = Math.max(user.max_streak, newStreak);
-
-      this._updateUser.run(
-        user.level, user.title, user.total_weight, user.current_weight,
-        user.gift_value, user.message_count, user.games_played + 1,
-        user.best_score, user.best_rank, newStreak, newMaxStreak,
-        user.abilities, user.id
-      );
-    }
+    return this._queryOne(
+      'SELECT * FROM users WHERE platform = ? AND platform_uid = ?',
+      [platform, platformUid]
+    );
   }
 
   // ── 获取排行榜 ──
   getLeaderboard(limit = 10) {
-    return this._getLeaderboard.all(limit);
-  }
-
-  // ── 获取本局贡献排行 ──
-  getGameContributors(gameId, limit = 10) {
-    return this._getTopContributors.all(gameId, limit);
+    return this._queryAll(
+      `SELECT id, platform, platform_uid, nickname, avatar, level, title,
+              total_weight, gift_value, message_count, games_played,
+              best_score, streak, max_streak
+       FROM users ORDER BY total_weight DESC LIMIT ?`,
+      [limit]
+    );
   }
 
   // ── 获取历史记录 ──
   getGameHistory(limit = 10) {
-    return this._getGameHistory.all(limit);
-  }
-
-  // ── 保存游戏记录 ──
-  saveGameHistory(roundNum, factionLeft, factionRight, winner, leftScore, rightScore, totalViewers) {
-    this.db.prepare(`
-      INSERT INTO game_history (round_num, faction_left, faction_right, winner, left_score, right_score, total_viewers, started_at, ended_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
-    `).run(roundNum, factionLeft, factionRight, winner, leftScore, rightScore, totalViewers);
+    return this._queryAll(
+      'SELECT * FROM game_history ORDER BY id DESC LIMIT ?',
+      [limit]
+    );
   }
 
   // ── 获取用户详情 ──
   getUser(platform, platformUid) {
-    return this._getUser.get(platform, platformUid);
+    return this._queryOne(
+      'SELECT * FROM users WHERE platform = ? AND platform_uid = ?',
+      [platform, platformUid]
+    );
   }
 
   // ── Mock数据 ──
@@ -295,39 +308,46 @@ export class UserSystem {
       { platform: 'douyin', uid: '20002', nickname: '夜猫子', avatar: '', giftValue: 90, messages: 300, games: 40, streak: 6 },
     ];
 
-    const insert = this.db.prepare(`
-      INSERT OR IGNORE INTO users (platform, platform_uid, nickname, avatar, level, title, total_weight, current_weight, gift_value, message_count, games_played, best_score, best_rank, streak, max_streak, abilities)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
+    // 检查是否已有数据
+    const existing = this._queryOne('SELECT COUNT(*) as cnt FROM users');
+    if (existing && existing.cnt > 0) {
+      console.log(`[UserSystem] 数据库已有 ${existing.cnt} 个用户，跳过 Mock`);
+      return;
+    }
 
-    const transaction = this.db.transaction(() => {
-      for (const u of mockUsers) {
-        const mockUser = {
-          level: 1, title: '新芽观察者', total_weight: 0, current_weight: 0,
-          gift_value: u.giftValue, message_count: u.messages, games_played: u.games,
-          best_score: Math.floor(Math.random() * 1000) + 500,
-          best_rank: Math.floor(Math.random() * 10) + 1,
-          streak: u.streak, max_streak: u.streak + Math.floor(Math.random() * 5),
-        };
-        const weight = this.calculateWeight(mockUser);
-        const levelInfo = this.getLevelInfo(weight);
+    for (const u of mockUsers) {
+      const mockUser = {
+        level: 1, title: '新芽观察者', total_weight: 0, current_weight: 0,
+        gift_value: u.giftValue, message_count: u.messages, games_played: u.games,
+        best_score: Math.floor(Math.random() * 1000) + 500,
+        best_rank: Math.floor(Math.random() * 10) + 1,
+        streak: u.streak, max_streak: u.streak + Math.floor(Math.random() * 5),
+      };
+      const weight = this.calculateWeight(mockUser);
+      const levelInfo = this.getLevelInfo(weight);
 
-        insert.run(
+      this._run(
+        `INSERT OR IGNORE INTO users (platform, platform_uid, nickname, avatar, level, title, total_weight, current_weight, gift_value, message_count, games_played, best_score, best_rank, streak, max_streak, abilities)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
           u.platform, u.uid, u.nickname, u.avatar,
           levelInfo.level, levelInfo.title, weight, weight * 0.1,
           u.giftValue, u.messages, u.games,
           mockUser.best_score, mockUser.best_rank,
           u.streak, mockUser.max_streak,
           JSON.stringify(levelInfo.abilities)
-        );
-      }
-    });
+        ]
+      );
+    }
 
-    transaction();
+    this._save();
     console.log(`[UserSystem] Mock数据已加载: ${mockUsers.length} 个用户`);
   }
 
   close() {
-    this.db.close();
+    if (this.db) {
+      this._save();
+      this.db.close();
+    }
   }
 }

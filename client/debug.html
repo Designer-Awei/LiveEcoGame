@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>🔧 LiveEcoGame 调试控制台</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #0d1117; color: #c9d1d9; font-family: 'SF Mono', 'Consolas', monospace; font-size: 13px; }
+    .container { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: auto 1fr 1fr; gap: 8px; padding: 8px; height: 100vh; }
+
+    .header { grid-column: 1 / -1; display: flex; align-items: center; gap: 12px; padding: 8px 12px; background: #161b22; border: 1px solid #30363d; border-radius: 6px; }
+    .header h1 { font-size: 16px; color: #58a6ff; }
+    .header .status { margin-left: auto; font-size: 12px; }
+    .header .status .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; }
+    .dot.green { background: #3fb950; } .dot.yellow { background: #d29922; } .dot.red { background: #f85149; }
+
+    .panel { background: #161b22; border: 1px solid #30363d; border-radius: 6px; overflow: hidden; display: flex; flex-direction: column; }
+    .panel-header { padding: 8px 12px; background: #21262d; border-bottom: 1px solid #30363d; font-weight: 700; font-size: 12px; color: #8b949e; display: flex; justify-content: space-between; align-items: center; }
+    .panel-body { padding: 8px; overflow-y: auto; flex: 1; }
+
+    .btn { padding: 4px 10px; border: 1px solid #30363d; background: #21262d; color: #c9d1d9; border-radius: 4px; cursor: pointer; font-size: 11px; font-family: inherit; }
+    .btn:hover { background: #30363d; border-color: #8b949e; }
+    .btn.primary { background: #238636; border-color: #2ea043; color: #fff; }
+    .btn.primary:hover { background: #2ea043; }
+    .btn.danger { background: #da3633; border-color: #f85149; color: #fff; }
+    .btn.danger:hover { background: #f85149; }
+
+    .event-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 4px; }
+    .event-btn { padding: 6px 4px; border: 1px solid #30363d; background: #0d1117; color: #c9d1d9; border-radius: 4px; cursor: pointer; font-size: 18px; text-align: center; transition: all 0.15s; }
+    .event-btn:hover { background: #21262d; border-color: #58a6ff; transform: scale(1.05); }
+    .event-btn:active { transform: scale(0.95); }
+    .event-btn .label { display: block; font-size: 10px; color: #8b949e; margin-top: 2px; }
+
+    .slider-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; }
+    .slider-row label { min-width: 60px; font-size: 11px; color: #8b949e; }
+    .slider-row input[type="range"] { flex: 1; }
+    .slider-row .value { min-width: 60px; text-align: right; font-weight: 700; color: #58a6ff; }
+
+    .faction-select { display: flex; gap: 6px; margin-bottom: 8px; }
+    .faction-btn { flex: 1; padding: 8px; border: 2px solid #30363d; background: #0d1117; color: #c9d1d9; border-radius: 6px; cursor: pointer; text-align: center; font-size: 14px; }
+    .faction-btn.active { border-color: #58a6ff; background: #161b22; }
+    .faction-btn:hover { border-color: #58a6ff; }
+
+    .log-entry { padding: 3px 6px; border-bottom: 1px solid #21262d; font-size: 11px; display: flex; gap: 6px; }
+    .log-time { color: #484f58; min-width: 50px; }
+    .log-source { color: #d2a8ff; min-width: 30px; }
+    .log-text { color: #c9d1d9; }
+    .log-ok { color: #3fb950; } .log-fail { color: #f85149; }
+
+    .stat-row { display: flex; justify-content: space-between; padding: 3px 0; border-bottom: 1px solid #21262d; }
+    .stat-label { color: #8b949e; }
+    .stat-value { color: #58a6ff; font-weight: 700; }
+
+    .cooldown-bar { height: 4px; background: #21262d; border-radius: 2px; margin-top: 2px; overflow: hidden; }
+    .cooldown-fill { height: 100%; background: #3fb950; border-radius: 2px; transition: width 0.3s; }
+
+    .creature-list { display: flex; flex-wrap: wrap; gap: 4px; }
+    .creature-tag { padding: 2px 6px; background: #21262d; border-radius: 10px; font-size: 12px; }
+
+    @media (max-width: 768px) {
+      .container { grid-template-columns: 1fr; grid-template-rows: auto repeat(4, 1fr); }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- 顶栏 -->
+    <div class="header">
+      <h1>🔧 LiveEcoGame 调试控制台</h1>
+      <span class="status"><span class="dot" id="statusDot"></span><span id="statusText">连接中...</span></span>
+      <button class="btn" onclick="fetch('/api/debug/reset')">🔄 重置游戏</button>
+      <a href="/" class="btn">🎮 打开游戏</a>
+    </div>
+
+    <!-- 左上：事件触发 -->
+    <div class="panel">
+      <div class="panel-header">
+        <span>⚡ 事件触发</span>
+        <span id="factionLabel" style="color:#58a6ff;">未选阵营</span>
+      </div>
+      <div class="panel-body">
+        <div class="faction-select">
+          <button class="faction-btn" id="fBtn0" onclick="selectFaction(0)">阵营 A</button>
+          <button class="faction-btn" id="fBtn1" onclick="selectFaction(1)">阵营 B</button>
+        </div>
+
+        <div style="margin-bottom:6px;color:#8b949e;font-size:10px;">基础事件</div>
+        <div class="event-grid" id="commonEvents"></div>
+
+        <div style="margin:8px 0 6px;color:#d29922;font-size:10px;">稀有事件</div>
+        <div class="event-grid" id="rareEvents"></div>
+
+        <div style="margin:8px 0 6px;color:#f85149;font-size:10px;">自定义输入</div>
+        <div style="display:flex;gap:4px;">
+          <input type="text" id="customInput" placeholder="输入弹幕文本..." style="flex:1;padding:4px 8px;background:#0d1117;border:1px solid #30363d;border-radius:4px;color:#c9d1d9;font-family:inherit;font-size:12px;">
+          <button class="btn primary" onclick="sendCustom()">发送</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 右上：用户模拟 -->
+    <div class="panel">
+      <div class="panel-header">
+        <span>👤 用户模拟</span>
+        <button class="btn" onclick="refreshCooldowns()">刷新冷却</button>
+      </div>
+      <div class="panel-body">
+        <div class="slider-row">
+          <label>等级</label>
+          <input type="range" min="1" max="50" value="1" id="levelSlider" oninput="updateUserSim()">
+          <span class="value" id="levelValue">Lv.1</span>
+        </div>
+        <div class="slider-row">
+          <label>权重</label>
+          <input type="range" min="0" max="15000" value="0" step="50" id="weightSlider" oninput="updateUserSim()">
+          <span class="value" id="weightValue">0</span>
+        </div>
+        <div class="slider-row">
+          <label>称号</label>
+          <span class="value" id="titleValue" style="flex:1;text-align:left;">新芽观察者</span>
+        </div>
+
+        <div style="margin:10px 0 6px;color:#8b949e;font-size:10px;">快捷设置</div>
+        <div style="display:flex;gap:4px;flex-wrap:wrap;">
+          <button class="btn" onclick="setWeight(0)">新手 (0)</button>
+          <button class="btn" onclick="setWeight(100)">学徒 (100)</button>
+          <button class="btn" onclick="setWeight(500)">守护者 (500)</button>
+          <button class="btn" onclick="setWeight(2000)">大师 (2000)</button>
+          <button class="btn" onclick="setWeight(5000)">钻石 (5000)</button>
+          <button class="btn" onclick="setWeight(15000)">创世神 (15000)</button>
+        </div>
+
+        <div style="margin:10px 0 6px;color:#8b949e;font-size:10px;">冷却状态</div>
+        <div id="cooldownList"></div>
+      </div>
+    </div>
+
+    <!-- 左下：实时状态 -->
+    <div class="panel">
+      <div class="panel-header">
+        <span>📊 实时状态</span>
+        <span id="gameTimer" style="color:#58a6ff;">00:00</span>
+      </div>
+      <div class="panel-body" id="gameStatePanel">
+        <div style="color:#484f58;">等待数据...</div>
+      </div>
+    </div>
+
+    <!-- 右下：事件日志 -->
+    <div class="panel">
+      <div class="panel-header">
+        <span>📜 事件日志</span>
+        <button class="btn" onclick="document.getElementById('logContainer').innerHTML=''">清空</button>
+      </div>
+      <div class="panel-body" id="logContainer"></div>
+    </div>
+  </div>
+
+  <script>
+    let selectedFaction = null;
+    let gameState = null;
+    let simulatedUser = { level: 1, weight: 0, title: '新芽观察者', platform: 'debug', platform_uid: 'debug_user' };
+
+    const LEVELS = [
+      { level: 1, weight: 0, title: '新芽观察者', abilities: ['weather', 'basic_creature'] },
+      { level: 5, weight: 100, title: '生态学徒', abilities: ['weather', 'basic_creature', 'rare_creature'] },
+      { level: 10, weight: 500, title: '自然守护者', abilities: ['weather', 'basic_creature', 'rare_creature', 'small_disaster'] },
+      { level: 20, weight: 2000, title: '生态大师', abilities: ['weather', 'basic_creature', 'rare_creature', 'small_disaster', 'global_event'] },
+      { level: 30, weight: 5000, title: '钻石守护者', abilities: ['weather', 'basic_creature', 'rare_creature', 'small_disaster', 'global_event', 'ultimate_event'] },
+      { level: 50, weight: 15000, title: '创世神', abilities: ['weather', 'basic_creature', 'rare_creature', 'small_disaster', 'global_event', 'ultimate_event', 'custom_event'] },
+    ];
+
+    // ── 事件按钮定义 ──
+    const COMMON_EVENTS = [
+      { icon: '🌧️', label: '下雨', cmd: '下雨' },
+      { icon: '☀️', label: '晴天', cmd: '晴天' },
+      { icon: '🌨️', label: '下雪', cmd: '下雪' },
+      { icon: '🏜️', label: '干旱', cmd: '干旱' },
+      { icon: '🌪️', label: '暴风', cmd: '暴风' },
+      { icon: '🐰', label: '兔子', cmd: '兔子' },
+      { icon: '🐺', label: '狼', cmd: '狼' },
+      { icon: '🦅', label: '鹰', cmd: '鹰' },
+      { icon: '🦌', label: '鹿', cmd: '鹿' },
+      { icon: '🐟', label: '鱼', cmd: '鱼' },
+      { icon: '🐍', label: '蛇', cmd: '蛇' },
+      { icon: '🦋', label: '蝴蝶', cmd: '蝴蝶' },
+      { icon: '🐻', label: '熊', cmd: '熊' },
+      { icon: '🦊', label: '狐狸', cmd: '狐狸' },
+      { icon: '🐧', label: '企鹅', cmd: '企鹅' },
+      { icon: '✨', label: '祝福', cmd: '祝福' },
+      { icon: '🌿', label: '丰收', cmd: '丰收' },
+      { icon: '👍', label: '点赞', cmd: '666' },
+    ];
+
+    const RARE_EVENTS = [
+      { icon: '🧬', label: '进化', cmd: '进化', minLv: 5 },
+      { icon: '🌋', label: '地震', cmd: '地震', minLv: 10 },
+      { icon: '🌊', label: '洪水', cmd: '洪水', minLv: 10 },
+      { icon: '☠️', label: '瘟疫', cmd: '瘟疫', minLv: 10 },
+      { icon: '🦗', label: '蝗灾', cmd: '蝗灾', minLv: 10 },
+      { icon: '🔥', label: '火山', cmd: '火山', minLv: 15 },
+      { icon: '🦁', label: '狮子', cmd: '狮子', minLv: 5 },
+      { icon: '🐼', label: '熊猫', cmd: '熊猫', minLv: 5 },
+      { icon: '🦈', label: '鲨鱼', cmd: '鲨鱼', minLv: 10 },
+      { icon: '🐉', label: '龙', cmd: '恐龙', minLv: 20 },
+      { icon: '🔥', label: '凤凰', cmd: '凤凰', minLv: 20 },
+    ];
+
+    function initEventButtons() {
+      const common = document.getElementById('commonEvents');
+      const rare = document.getElementById('rareEvents');
+
+      common.innerHTML = COMMON_EVENTS.map(e =>
+        `<div class="event-btn" onclick="triggerEvent('${e.cmd}')" title="${e.label}">${e.icon}<span class="label">${e.label}</span></div>`
+      ).join('');
+
+      rare.innerHTML = RARE_EVENTS.map(e =>
+        `<div class="event-btn" onclick="triggerEvent('${e.cmd}')" title="${e.label} (Lv.${e.minLv}+)">${e.icon}<span class="label">${e.label}</span></div>`
+      ).join('');
+    }
+
+    function selectFaction(idx) {
+      selectedFaction = idx;
+      document.getElementById('fBtn0').className = 'faction-btn' + (idx === 0 ? ' active' : '');
+      document.getElementById('fBtn1').className = 'faction-btn' + (idx === 1 ? ' active' : '');
+      if (gameState?.factions?.[idx]) {
+        const b = gameState.factions[idx].biome;
+        document.getElementById('factionLabel').textContent = `${b.emoji} ${b.name}`;
+        document.getElementById('factionLabel').style.color = '#58a6ff';
+      }
+    }
+
+    function triggerEvent(cmd) {
+      if (selectedFaction === null) { addLog('⚠️', '请先选择阵营', false); return; }
+      const faction = gameState?.factions?.[selectedFaction]?.biome?.id;
+      if (!faction) return;
+
+      addLog('📤', `发送「${cmd}」到 ${faction}`, true);
+
+      fetch('/api/event', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          faction,
+          text: cmd,
+          name: '调试员',
+          platform: 'debug',
+          platformUid: 'debug_user',
+        })
+      }).then(r => r.json()).then(d => {
+        if (d.ok) {
+          addLog('✅', `${d.event.icon} ${d.event.name}`, true);
+        } else {
+          addLog('❌', d.reason || '失败', false);
+        }
+      }).catch(e => addLog('❌', e.message, false));
+    }
+
+    function sendCustom() {
+      const input = document.getElementById('customInput');
+      const text = input.value.trim();
+      if (!text) return;
+      triggerEvent(text);
+      input.value = '';
+    }
+
+    document.getElementById('customInput').onkeydown = e => { if (e.key === 'Enter') sendCustom(); };
+
+    // ── 用户模拟 ──
+    function updateUserSim() {
+      const level = parseInt(document.getElementById('levelSlider').value);
+      const weight = parseInt(document.getElementById('weightSlider').value);
+
+      // 找对应称号
+      let title = '新芽观察者';
+      for (let i = LEVELS.length - 1; i >= 0; i--) {
+        if (weight >= LEVELS[i].weight) { title = LEVELS[i].title; break; }
+      }
+
+      document.getElementById('levelValue').textContent = `Lv.${level}`;
+      document.getElementById('weightValue').textContent = weight.toLocaleString();
+      document.getElementById('titleValue').textContent = title;
+
+      simulatedUser.level = level;
+      simulatedUser.weight = weight;
+      simulatedUser.title = title;
+
+      refreshCooldowns();
+    }
+
+    function setWeight(w) {
+      document.getElementById('weightSlider').value = w;
+      updateUserSim();
+      // 也通知服务端
+      fetch(`/api/debug/setweight?weight=${w}`).then(r => r.json()).then(d => {
+        if (d.ok) addLog('👤', `权重设为 ${d.weight}, Lv.${d.level} ${d.title}`, true);
+      });
+    }
+
+    function refreshCooldowns() {
+      // 模拟本地冷却显示
+      const weight = simulatedUser.weight;
+      const categories = [
+        { name: '天气', base: 10, min: 3 },
+        { name: '生物', base: 15, min: 5 },
+        { name: '祝福', base: 30, min: 10 },
+        { name: '资源', base: 20, min: 8 },
+        { name: '灾害', base: 60, min: 20 },
+        { name: '进化', base: 45, min: 15 },
+        { name: '传说', base: 30, min: 10 },
+        { name: '神话', base: 120, min: 60 },
+        { name: '点赞', base: 5, min: 2 },
+      ];
+
+      const el = document.getElementById('cooldownList');
+      el.innerHTML = categories.map(c => {
+        const factor = Math.max(0.2, 1 - weight / 2000);
+        const effective = Math.max(c.min, Math.round(c.base * factor));
+        const pct = ((c.base - effective) / c.base * 100).toFixed(0);
+        return `<div style="display:flex;align-items:center;gap:6px;padding:2px 0;">
+          <span style="min-width:36px;color:#8b949e;">${c.name}</span>
+          <div class="cooldown-bar" style="flex:1;"><div class="cooldown-fill" style="width:${pct}%;background:${effective <= c.min + 2 ? '#3fb950' : effective < c.base * 0.5 ? '#d29922' : '#f85149'};"></div></div>
+          <span style="min-width:30px;text-align:right;font-size:10px;">${effective}s</span>
+        </div>`;
+      }).join('');
+    }
+
+    // ── 实时状态 ──
+    function updateGameState(data) {
+      const { factions, elapsed, duration, round, viewerCount, globalEvents, leaderboard } = data;
+
+      // 计时器
+      const ft = s => String(Math.floor(s/60)).padStart(2,'0') + ':' + String(s%60).padStart(2,'0');
+      document.getElementById('gameTimer').textContent = `${ft(elapsed)} / ${ft(duration)} · 第${round}局 · 👁${viewerCount}`;
+
+      // 更新阵营按钮
+      if (factions?.length >= 2) {
+        document.getElementById('fBtn0').textContent = `${factions[0].biome.emoji} ${factions[0].biome.name}`;
+        document.getElementById('fBtn1').textContent = `${factions[1].biome.emoji} ${factions[1].biome.name}`;
+        if (selectedFaction !== null) {
+          const b = factions[selectedFaction].biome;
+          document.getElementById('factionLabel').textContent = `${b.emoji} ${b.name}`;
+        }
+      }
+
+      // 状态面板
+      const panel = document.getElementById('gameStatePanel');
+      let html = '';
+
+      for (const f of factions) {
+        const s = f.stats;
+        const sm = {spring:'春',summer:'夏',autumn:'秋',winter:'冬'}[s?.season]||'?';
+        const we = {clear:'☀️',rain:'🌧️',snow:'🌨️',drought:'🏜️',heatwave:'🌡️'}[s?.weather]||'?';
+
+        html += `<div style="margin-bottom:10px;">
+          <div style="font-size:14px;font-weight:700;margin-bottom:4px;">${f.biome.emoji} ${f.biome.name} <span style="color:#3fb950;">${f.score}</span></div>
+          <div class="stat-row"><span class="stat-label">季节/天气</span><span class="stat-value">${sm} ${we} ${s?.temperature||0}°C</span></div>
+          <div class="stat-row"><span class="stat-label">多样性</span><span class="stat-value">${s?.biodiversity||0} 种</span></div>
+          <div class="stat-row"><span class="stat-label">总人口</span><span class="stat-value">${s?.totalPop||0}</span></div>
+          <div class="stat-row"><span class="stat-label">平衡度</span><span class="stat-value">${((s?.balance||0)*100).toFixed(0)}%</span></div>
+          <div class="stat-row"><span class="stat-label">降雨量</span><span class="stat-value">${s?.rainfall||0}%</span></div>
+          <div class="creature-list">${(f.creatures||[]).slice(0,10).map(c => `<span class="creature-tag">${c.emoji} ${c.count}</span>`).join('')}</div>
+        </div>`;
+      }
+
+      // 排行榜
+      if (leaderboard?.length) {
+        html += `<div style="margin-top:8px;padding-top:8px;border-top:1px solid #30363d;">
+          <div style="color:#8b949e;font-size:10px;margin-bottom:4px;">🏆 排行榜</div>
+          ${leaderboard.slice(0,5).map((u, i) => `<div class="stat-row"><span class="stat-label">${i===0?'🥇':i===1?'🥈':i===2?'🥉':'#'+(i+1)} ${u.nickname}</span><span class="stat-value">Lv.${u.level} ${u.weight}</span></div>`).join('')}
+        </div>`;
+      }
+
+      panel.innerHTML = html;
+
+      // 更新连接状态
+      document.getElementById('statusDot').className = 'dot green';
+      document.getElementById('statusText').textContent = `已连接 · ${viewerCount} 观众`;
+    }
+
+    // ── 事件日志 ──
+    function addLog(source, text, ok) {
+      const el = document.getElementById('logContainer');
+      const now = new Date();
+      const time = now.toTimeString().slice(0, 8);
+      el.innerHTML = `<div class="log-entry"><span class="log-time">${time}</span><span class="log-source">${source}</span><span class="log-text ${ok ? 'log-ok' : 'log-fail'}">${text}</span></div>` + el.innerHTML;
+      // 限制日志数量
+      while (el.children.length > 200) el.removeChild(el.lastChild);
+    }
+
+    // ── SSE 连接 ──
+    function connectSSE() {
+      const es = new EventSource('/api/stream');
+      es.onmessage = e => {
+        try {
+          const d = JSON.parse(e.data);
+          if (d.type === 'state') { gameState = d; updateGameState(d); }
+        } catch {}
+      };
+      es.onerror = () => {
+        document.getElementById('statusDot').className = 'dot red';
+        document.getElementById('statusText').textContent = '连接断开，重连中...';
+        es.close();
+        setTimeout(connectSSE, 3000);
+      };
+    }
+
+    // ── 初始化 ──
+    initEventButtons();
+    refreshCooldowns();
+    connectSSE();
+    addLog('🔧', '调试控制台已启动', true);
+  </script>
+</body>
+</html>
