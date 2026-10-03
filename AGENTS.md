@@ -11,7 +11,7 @@
 
 ## 目录结构
 ```
-danmaku-ecosystem/
+LiveEcoGame/
 ├── server/
 │   ├── index.mjs        # 主入口，HTTP 服务 + 路由 + 游戏循环
 │   ├── ecosystem.mjs    # 生态系统模拟引擎（食物链、种群、天气）
