@@ -50,10 +50,7 @@ function updateUI() {
   rendererTop?.render(factions[0].creatures, factions[0].stats, factions[0].stats?.weather);
   rendererBottom?.render(factions[1].creatures, factions[1].stats, factions[1].stats?.weather);
 
-  const s0 = factions[0].score, s1 = factions[1].score, total = s0 + s1 || 1;
-  document.getElementById('vsFill').style.width = (s0 / total * 100).toFixed(0) + '%';
-  const diff = Math.abs(s0 - s1);
-  document.getElementById('vsInfo').textContent = s0 > s1 ? `山脉+${diff}` : s1 > s0 ? `草原+${diff}` : '持平';
+  updateWinrate(factions[0], factions[1], elapsed, duration);
 
   document.getElementById('btnTop').textContent = `${factions[0].biome.emoji} ${factions[0].biome.name}`;
   document.getElementById('btnBottom').textContent = `${factions[1].biome.emoji} ${factions[1].biome.name}`;
@@ -68,7 +65,16 @@ function updatePanel(i, side) {
   document.getElementById('score' + side).textContent = f.score;
 
   const tk = document.getElementById('ticker' + side);
-  if (f.recentEvents?.length) tk.innerHTML = f.recentEvents.slice(0,3).map(e => `<span class="ev">${e.source}:${e.text}</span>`).join('');
+  if (f.recentEvents?.length) {
+    tk.innerHTML = f.recentEvents.slice(0,3).map(e => `<span class="ev">${e.source}:${e.text}</span>`).join('');
+    // 检测灾害事件，触发动效
+    const latest = f.recentEvents[0];
+    if (latest && latest.type === 'disaster' && latest.time === gameState.elapsed) {
+      const r = i === 0 ? rendererTop : rendererBottom;
+      const disasterName = latest.text.replace(/^[^\u4e00-\u9fff]*/, '').trim();
+      r?.triggerDisaster(disasterName);
+    }
+  }
 
   const st = document.getElementById('stats' + side);
   if (f.stats) {
@@ -89,6 +95,49 @@ function renderLB(lb) {
     const re = i===0?'🥇':i===1?'🥈':i===2?'🥉':`#${i+1}`;
     return `<div class="lb-fi"><span class="lb-fi-rk ${rc}">${re}</span><div class="lb-fi-info"><div class="lb-fi-name">${u.nickname}</div><div class="lb-fi-title">Lv.${u.level} ${u.title}</div></div><div class="lb-fi-st"><div class="lb-fi-wt">${u.weight.toLocaleString()}</div>${u.streak?`<div class="lb-fi-streak">🔥${u.streak}</div>`:''}</div></div>`;
   }).join('');
+}
+
+function updateWinrate(f0, f1, elapsed, duration) {
+  const s0 = f0.score, s1 = f1.score;
+  const diff = s0 - s1;
+  const timeFrac = duration > 0 ? elapsed / duration : 0;
+  // 早期不确定性大（宽分母），后期趋于确定（窄分母）
+  const uncertainty = 200 + 400 * (1 - timeFrac);
+  const z = diff / uncertainty;
+  // Sigmoid: 50% when tied, →100% or 0% as gap widens / time runs out
+  const winRateTop = 1 / (1 + Math.exp(-z * 3));
+  const pctTop = Math.round(winRateTop * 100);
+  const pctBottom = 100 - pctTop;
+
+  document.getElementById('winrateTop').style.width = pctTop + '%';
+  document.getElementById('winrateBottom').style.width = pctBottom + '%';
+  document.getElementById('winrateTopPct').textContent = pctTop + '%';
+  document.getElementById('winrateBottomPct').textContent = pctBottom + '%';
+
+  // 标签：显示领先方和分差
+  const name0 = f0.biome.name, name1 = f1.biome.name;
+  const absDiff = Math.abs(diff);
+  let label = '';
+  if (absDiff < 10) {
+    label = '⚖️ 胶着中 · 两个生态各显神通';
+  } else if (pctTop >= 85) {
+    label = `🔵 ${name0} 大幅领先 +${absDiff}`;
+  } else if (pctTop >= 60) {
+    label = `🔵 ${name0} 领先 +${absDiff}`;
+  } else if (pctBottom >= 85) {
+    label = `🟠 ${name1} 大幅领先 +${absDiff}`;
+  } else if (pctBottom >= 60) {
+    label = `🟠 ${name1} 领先 +${absDiff}`;
+  } else {
+    label = `⚡ ${diff > 0 ? name0 : name1} 微弱领先 +${absDiff}`;
+  }
+  // 时间提示
+  const remain = duration - elapsed;
+  if (remain < 60 && remain > 0) label += ` · 最后${remain}秒`;
+  else if (remain <= 0) label = '🏁 结算中...';
+  else if (timeFrac < 0.15) label = '🌱 发育阶段 · ' + label;
+
+  document.getElementById('winrateLabel').textContent = label;
 }
 
 function ft(s) { return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0'); }

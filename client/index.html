@@ -27,11 +27,15 @@
     <div class="biome-creatures-float" id="creaturesTop"></div>
   </section>
 
-  <!-- VS分隔 -->
+  <!-- 胜率条 -->
   <div class="vs-bar">
-    <span class="vs-label">VS</span>
-    <div class="vs-progress"><div id="vsFill" class="vs-fill"></div></div>
-    <span id="vsInfo" class="vs-info">持平</span>
+    <div class="winrate-wrap">
+      <div class="winrate-bar">
+        <div class="winrate-fill winrate-top" id="winrateTop"><span id="winrateTopPct">50%</span></div>
+        <div class="winrate-fill winrate-bottom" id="winrateBottom"><span id="winrateBottomPct">50%</span></div>
+      </div>
+      <div class="winrate-label" id="winrateLabel">⏳ 发育中...</div>
+    </div>
   </div>
 
   <!-- 下板块 -->
@@ -77,6 +81,7 @@
   <div id="rulesModal" class="modal" style="display:none;">
     <div class="modal-content">
       <div class="modal-header"><h2>🎮 玩法说明</h2><button class="modal-close" onclick="document.getElementById('rulesModal').style.display='none'">✕</button></div>
+      <div class="rg" style="margin-bottom:12px;padding:8px;background:rgba(59,130,246,0.1);border-radius:8px;"><div class="rl">📖 核心玩法</div><div class="rt">两个生态各自独立发育，观众通过弹幕影响自己支持的生态。最终比拼总分，分数高者获胜！</div></div>
       <div class="rg"><div class="rl">🌤️ 天气（免费）</div><div class="rt">下雨 晴天 暴风雪 干旱 热浪</div></div>
       <div class="rg"><div class="rl">🐾 投放生物</div><div class="rt">兔子 狼 鹰 鹿 鱼 蛇 蝴蝶 猴子 狮子 恐龙 凤凰</div></div>
       <div class="rg"><div class="rl">💥 灾害（Lv.10+）</div><div class="rt">地震 洪水 瘟疫 蝗灾 火山喷发</div></div>

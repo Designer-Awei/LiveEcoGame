@@ -57,73 +57,73 @@ const BIOME_CREATURES = {
 // ── 生物属性 ──
 const CREATURE_STATS = {
   // producers
-  grass:       { type: 'producer', energy: 1,  growth: 0.15, maxPop: 200, emoji: '🌱' },
-  moss:        { type: 'producer', energy: 1,  growth: 0.12, maxPop: 150, emoji: '🌿' },
-  bush:        { type: 'producer', energy: 2,  growth: 0.08, maxPop: 80,  emoji: '🌳' },
-  algae:       { type: 'producer', energy: 1,  growth: 0.18, maxPop: 250, emoji: '🟢' },
+  grass:       { type: 'producer', energy: 1,  growth: 0.10, maxPop: 120, emoji: '🌱' },
+  moss:        { type: 'producer', energy: 1,  growth: 0.10, maxPop: 120, emoji: '🌿' },
+  bush:        { type: 'producer', energy: 2,  growth: 0.10, maxPop: 120,  emoji: '🌳' },
+  algae:       { type: 'producer', energy: 1,  growth: 0.10, maxPop: 120, emoji: '🟢' },
   reed:        { type: 'producer', energy: 1,  growth: 0.10, maxPop: 120, emoji: '🌾' },
-  waterlily:   { type: 'producer', energy: 2,  growth: 0.06, maxPop: 60,  emoji: '🪷' },
-  fern:        { type: 'producer', energy: 1,  growth: 0.14, maxPop: 180, emoji: '🌿' },
-  vine:        { type: 'producer', energy: 2,  growth: 0.10, maxPop: 100, emoji: '🌱' },
-  mushroom:    { type: 'producer', energy: 2,  growth: 0.08, maxPop: 90,  emoji: '🍄' },
-  cactus:      { type: 'producer', energy: 3,  growth: 0.04, maxPop: 50,  emoji: '🌵' },
-  tumbleweed:  { type: 'producer', energy: 1,  growth: 0.12, maxPop: 100, emoji: '🌾' },
-  succulent:   { type: 'producer', energy: 2,  growth: 0.06, maxPop: 70,  emoji: '🪴' },
-  lavamoss:    { type: 'producer', energy: 2,  growth: 0.06, maxPop: 60,  emoji: '🔥' },
-  ashfern:     { type: 'producer', energy: 1,  growth: 0.10, maxPop: 80,  emoji: '🌿' },
-  fireflower:  { type: 'producer', energy: 3,  growth: 0.04, maxPop: 40,  emoji: '🌺' },
-  snowmoss:    { type: 'producer', energy: 1,  growth: 0.05, maxPop: 80,  emoji: '❄️' },
-  icelichen:   { type: 'producer', energy: 2,  growth: 0.03, maxPop: 50,  emoji: '🧊' },
-  frostberry:  { type: 'producer', energy: 2,  growth: 0.04, maxPop: 60,  emoji: '🫐' },
-  flower:      { type: 'producer', energy: 1,  growth: 0.12, maxPop: 150, emoji: '🌼' },
-  clover:      { type: 'producer', energy: 1,  growth: 0.14, maxPop: 160, emoji: '☘️' },
-  coconut:     { type: 'producer', energy: 3,  growth: 0.04, maxPop: 40,  emoji: '🥥' },
-  seaweed:     { type: 'producer', energy: 1,  growth: 0.16, maxPop: 200, emoji: '🌊' },
-  sandgrass:   { type: 'producer', energy: 1,  growth: 0.08, maxPop: 80,  emoji: '🌾' },
+  waterlily:   { type: 'producer', energy: 2,  growth: 0.10, maxPop: 120,  emoji: '🪷' },
+  fern:        { type: 'producer', energy: 1,  growth: 0.10, maxPop: 120, emoji: '🌿' },
+  vine:        { type: 'producer', energy: 2,  growth: 0.10, maxPop: 120, emoji: '🌱' },
+  mushroom:    { type: 'producer', energy: 2,  growth: 0.10, maxPop: 120,  emoji: '🍄' },
+  cactus:      { type: 'producer', energy: 3,  growth: 0.10, maxPop: 120,  emoji: '🌵' },
+  tumbleweed:  { type: 'producer', energy: 1,  growth: 0.10, maxPop: 120, emoji: '🌾' },
+  succulent:   { type: 'producer', energy: 2,  growth: 0.10, maxPop: 120,  emoji: '🪴' },
+  lavamoss:    { type: 'producer', energy: 2,  growth: 0.10, maxPop: 120,  emoji: '🔥' },
+  ashfern:     { type: 'producer', energy: 1,  growth: 0.10, maxPop: 120,  emoji: '🌿' },
+  fireflower:  { type: 'producer', energy: 3,  growth: 0.10, maxPop: 120,  emoji: '🌺' },
+  snowmoss:    { type: 'producer', energy: 1,  growth: 0.10, maxPop: 120,  emoji: '❄️' },
+  icelichen:   { type: 'producer', energy: 2,  growth: 0.10, maxPop: 120,  emoji: '🧊' },
+  frostberry:  { type: 'producer', energy: 2,  growth: 0.10, maxPop: 120,  emoji: '🫐' },
+  flower:      { type: 'producer', energy: 1,  growth: 0.10, maxPop: 120, emoji: '🌼' },
+  clover:      { type: 'producer', energy: 1,  growth: 0.10, maxPop: 120, emoji: '☘️' },
+  coconut:     { type: 'producer', energy: 3,  growth: 0.10, maxPop: 120,  emoji: '🥥' },
+  seaweed:     { type: 'producer', energy: 1,  growth: 0.10, maxPop: 120, emoji: '🌊' },
+  sandgrass:   { type: 'producer', energy: 1,  growth: 0.10, maxPop: 120,  emoji: '🌾' },
 
   // herbivores
-  goat:     { type: 'herbivore', energy: 20, speed: 1.2, breed: 0.008, emoji: '🐐' },
-  rabbit:   { type: 'herbivore', energy: 12, speed: 1.5, breed: 0.015, emoji: '🐰' },
+  goat:     { type: 'herbivore', energy: 20, speed: 1.2, breed: 0.010, emoji: '🐐' },
+  rabbit:   { type: 'herbivore', energy: 12, speed: 1.5, breed: 0.010, emoji: '🐰' },
   marmot:   { type: 'herbivore', energy: 15, speed: 0.8, breed: 0.010, emoji: '🐿️' },
-  fish:     { type: 'herbivore', energy: 10, speed: 1.8, breed: 0.020, emoji: '🐟' },
-  frog:     { type: 'herbivore', energy: 8,  speed: 1.0, breed: 0.018, emoji: '🐸' },
-  duck:     { type: 'herbivore', energy: 14, speed: 1.3, breed: 0.012, emoji: '🦆' },
-  monkey:   { type: 'herbivore', energy: 18, speed: 1.4, breed: 0.008, emoji: '🐒' },
+  fish:     { type: 'herbivore', energy: 10, speed: 1.8, breed: 0.010, emoji: '🐟' },
+  frog:     { type: 'herbivore', energy: 8,  speed: 1.0, breed: 0.010, emoji: '🐸' },
+  duck:     { type: 'herbivore', energy: 14, speed: 1.3, breed: 0.010, emoji: '🦆' },
+  monkey:   { type: 'herbivore', energy: 18, speed: 1.4, breed: 0.010, emoji: '🐒' },
   parrot:   { type: 'herbivore', energy: 10, speed: 2.0, breed: 0.010, emoji: '🦜' },
-  lizard:   { type: 'herbivore', energy: 8,  speed: 1.6, breed: 0.014, emoji: '🦎' },
-  camel:    { type: 'herbivore', energy: 25, speed: 0.6, breed: 0.005, emoji: '🐫' },
-  firesalamander: { type: 'herbivore', energy: 15, speed: 1.0, breed: 0.008, emoji: '🦎' },
-  lavabeetle:     { type: 'herbivore', energy: 8,  speed: 0.8, breed: 0.012, emoji: '🪲' },
-  ashrabbit:      { type: 'herbivore', energy: 12, speed: 1.2, breed: 0.014, emoji: '🐰' },
-  penguin:   { type: 'herbivore', energy: 16, speed: 0.8, breed: 0.008, emoji: '🐧' },
-  seal:      { type: 'herbivore', energy: 22, speed: 1.0, breed: 0.006, emoji: '🦭' },
-  lemming:   { type: 'herbivore', energy: 8,  speed: 1.5, breed: 0.020, emoji: '🐭' },
-  bison:     { type: 'herbivore', energy: 30, speed: 0.7, breed: 0.004, emoji: '🦬' },
-  deer:      { type: 'herbivore', energy: 20, speed: 1.4, breed: 0.008, emoji: '🦌' },
-  turtle:    { type: 'herbivore', energy: 18, speed: 0.4, breed: 0.006, emoji: '🐢' },
-  crab:      { type: 'herbivore', energy: 10, speed: 0.6, breed: 0.014, emoji: '🦀' },
+  lizard:   { type: 'herbivore', energy: 8,  speed: 1.6, breed: 0.010, emoji: '🦎' },
+  camel:    { type: 'herbivore', energy: 25, speed: 0.6, breed: 0.010, emoji: '🐫' },
+  firesalamander: { type: 'herbivore', energy: 15, speed: 1.0, breed: 0.010, emoji: '🦎' },
+  lavabeetle:     { type: 'herbivore', energy: 8,  speed: 0.8, breed: 0.010, emoji: '🪲' },
+  ashrabbit:      { type: 'herbivore', energy: 12, speed: 1.2, breed: 0.010, emoji: '🐰' },
+  penguin:   { type: 'herbivore', energy: 16, speed: 0.8, breed: 0.010, emoji: '🐧' },
+  seal:      { type: 'herbivore', energy: 22, speed: 1.0, breed: 0.010, emoji: '🦭' },
+  lemming:   { type: 'herbivore', energy: 8,  speed: 1.5, breed: 0.010, emoji: '🐭' },
+  bison:     { type: 'herbivore', energy: 30, speed: 0.7, breed: 0.010, emoji: '🦬' },
+  deer:      { type: 'herbivore', energy: 20, speed: 1.4, breed: 0.010, emoji: '🦌' },
+  turtle:    { type: 'herbivore', energy: 18, speed: 0.4, breed: 0.010, emoji: '🐢' },
+  crab:      { type: 'herbivore', energy: 10, speed: 0.6, breed: 0.010, emoji: '🦀' },
   seabird:   { type: 'herbivore', energy: 12, speed: 1.8, breed: 0.010, emoji: '🐦' },
 
   // predators
   eagle:    { type: 'predator', energy: 35, speed: 2.0, hunt: 0.6, breed: 0.003, emoji: '🦅' },
-  wolf:     { type: 'predator', energy: 40, speed: 1.5, hunt: 0.7, breed: 0.002, emoji: '🐺' },
-  bear:     { type: 'predator', energy: 60, speed: 1.0, hunt: 0.8, breed: 0.001, emoji: '🐻' },
-  heron:    { type: 'predator', energy: 30, speed: 1.2, hunt: 0.5, breed: 0.004, emoji: '🦢' },
-  otter:    { type: 'predator', energy: 25, speed: 1.5, hunt: 0.5, breed: 0.005, emoji: '🦦' },
+  wolf:     { type: 'predator', energy: 40, speed: 1.5, hunt: 0.6, breed: 0.003, emoji: '🐺' },
+  bear:     { type: 'predator', energy: 60, speed: 1.0, hunt: 0.6, breed: 0.003, emoji: '🐻' },
+  heron:    { type: 'predator', energy: 30, speed: 1.2, hunt: 0.6, breed: 0.003, emoji: '🦢' },
+  otter:    { type: 'predator', energy: 25, speed: 1.5, hunt: 0.6, breed: 0.003, emoji: '🦦' },
   pike:     { type: 'predator', energy: 30, speed: 1.8, hunt: 0.6, breed: 0.003, emoji: '🐟' },
-  snake:    { type: 'predator', energy: 25, speed: 1.2, hunt: 0.6, breed: 0.004, emoji: '🐍' },
-  jaguar:   { type: 'predator', energy: 50, speed: 1.8, hunt: 0.8, breed: 0.001, emoji: '🐆' },
-  scorpion: { type: 'predator', energy: 15, speed: 0.8, hunt: 0.5, breed: 0.006, emoji: '🦂' },
+  snake:    { type: 'predator', energy: 25, speed: 1.2, hunt: 0.6, breed: 0.003, emoji: '🐍' },
+  jaguar:   { type: 'predator', energy: 50, speed: 1.8, hunt: 0.6, breed: 0.003, emoji: '🐆' },
+  scorpion: { type: 'predator', energy: 15, speed: 0.8, hunt: 0.6, breed: 0.003, emoji: '🦂' },
   hawk:     { type: 'predator', energy: 30, speed: 2.2, hunt: 0.6, breed: 0.003, emoji: '🦅' },
-  fennec:   { type: 'predator', energy: 20, speed: 1.6, hunt: 0.4, breed: 0.005, emoji: '🦊' },
-  magmadragon:  { type: 'predator', energy: 80, speed: 1.0, hunt: 0.9, breed: 0.0005, emoji: '🐉' },
-  infernohawk:  { type: 'predator', energy: 40, speed: 2.0, hunt: 0.7, breed: 0.002, emoji: '🦅' },
-  emberwolf:    { type: 'predator', energy: 45, speed: 1.5, hunt: 0.7, breed: 0.002, emoji: '🐺' },
-  polarbear:    { type: 'predator', energy: 60, speed: 1.0, hunt: 0.8, breed: 0.001, emoji: '🐻‍❄️' },
-  arcticfox:    { type: 'predator', energy: 20, speed: 1.8, hunt: 0.5, breed: 0.005, emoji: '🦊' },
-  snowowl:      { type: 'predator', energy: 25, speed: 1.5, hunt: 0.5, breed: 0.004, emoji: '🦉' },
-  fox:      { type: 'predator', energy: 20, speed: 1.6, hunt: 0.4, breed: 0.005, emoji: '🦊' },
-  shark:    { type: 'predator', energy: 50, speed: 2.0, hunt: 0.8, breed: 0.001, emoji: '🦈' },
+  fennec:   { type: 'predator', energy: 20, speed: 1.6, hunt: 0.6, breed: 0.003, emoji: '🦊' },
+  magmadragon:  { type: 'predator', energy: 80, speed: 1.0, hunt: 0.6, breed: 0.003, emoji: '🐉' },
+  infernohawk:  { type: 'predator', energy: 40, speed: 2.0, hunt: 0.6, breed: 0.003, emoji: '🦅' },
+  emberwolf:    { type: 'predator', energy: 45, speed: 1.5, hunt: 0.6, breed: 0.003, emoji: '🐺' },
+  polarbear:    { type: 'predator', energy: 60, speed: 1.0, hunt: 0.6, breed: 0.003, emoji: '🐻‍❄️' },
+  arcticfox:    { type: 'predator', energy: 20, speed: 1.8, hunt: 0.6, breed: 0.003, emoji: '🦊' },
+  snowowl:      { type: 'predator', energy: 25, speed: 1.5, hunt: 0.6, breed: 0.003, emoji: '🦉' },
+  fox:      { type: 'predator', energy: 20, speed: 1.6, hunt: 0.6, breed: 0.003, emoji: '🦊' },
+  shark:    { type: 'predator', energy: 50, speed: 2.0, hunt: 0.6, breed: 0.003, emoji: '🦈' },
   octopus:  { type: 'predator', energy: 30, speed: 1.0, hunt: 0.6, breed: 0.003, emoji: '🐙' },
   osprey:   { type: 'predator', energy: 30, speed: 2.0, hunt: 0.6, breed: 0.003, emoji: '🦅' },
 
@@ -146,8 +146,9 @@ export class Ecosystem {
     this.population = {};   // { species: count }
     this.season = 'spring';
     this.weather = 'clear';
-    this.temperature = 20;  // °C
-    this.rainfall = 50;     // 0-100
+    this.temperature = 20 + (Math.random() - 0.5) * 10;
+    this.rainfall = 50 + (Math.random() - 0.5) * 20;
+    this.vitality = 0.85 + Math.random() * 0.30;
     this.biodiversity = 0;
     this.totalPop = 0;
     this.age = 0;
@@ -168,9 +169,9 @@ export class Ecosystem {
       const stats = CREATURE_STATS[sp];
       if (!stats) continue;
       if (stats.type === 'producer') {
-        this.population[sp] = Math.floor(stats.maxPop * 0.3);
+        this.population[sp] = Math.floor(30 + Math.random() * 12);
       } else if (stats.type === 'herbivore') {
-        this.population[sp] = Math.floor(5 + Math.random() * 10);
+        this.population[sp] = Math.floor(5 + Math.random() * 6);
       } else {
         this.population[sp] = Math.floor(1 + Math.random() * 3);
       }
@@ -192,15 +193,15 @@ export class Ecosystem {
     for (const sp of this.creatureDefs.producers) {
       const stats = CREATURE_STATS[sp];
       if (!stats || !this.population[sp]) continue;
-      let growth = stats.growth;
+      let growth = stats.growth * this.vitality;
       // 季节影响
       growth *= this._seasonMultiplier('producer');
       // 天气影响
       if (this.weather === 'rain') growth *= 1.5;
       if (this.weather === 'drought') growth *= 0.3;
       // 温度影响
-      if (this.temperature < 0) growth *= 0.2;
-      if (this.temperature > 40) growth *= 0.5;
+      if (this.temperature < 0) growth *= 0.6;
+      if (this.temperature > 40) growth *= 0.7;
       // 增长
       const newPop = Math.min(
         Math.floor(this.population[sp] * (1 + growth)),
@@ -220,7 +221,7 @@ export class Ecosystem {
       const foodNeeded = pop * 0.1;
       if (foodAvailable >= foodNeeded) {
         // 繁殖
-        let breedChance = stats.breed * this._seasonMultiplier('herbivore');
+        let breedChance = stats.breed * this.vitality * this._seasonMultiplier('herbivore');
         if (this.weather === 'rain') breedChance *= 1.2;
         const newborns = Math.floor(pop * breedChance);
         pop += newborns;
@@ -245,7 +246,7 @@ export class Ecosystem {
       // 猎食
       const preyAvailable = this._getPreyAvailable(sp);
       if (preyAvailable > 0) {
-        let breedChance = stats.breed * this._seasonMultiplier('predator');
+        let breedChance = stats.breed * this.vitality * this._seasonMultiplier('predator');
         const newborns = Math.floor(pop * breedChance);
         pop += newborns;
       } else {
@@ -301,7 +302,7 @@ export class Ecosystem {
       spring: { producer: 1.2, herbivore: 1.1, predator: 1.0 },
       summer: { producer: 1.5, herbivore: 1.3, predator: 1.1 },
       autumn: { producer: 0.8, herbivore: 0.9, predator: 1.2 },
-      winter: { producer: 0.3, herbivore: 0.6, predator: 0.8 },
+      winter: { producer: 0.5, herbivore: 0.7, predator: 0.9 },
     };
     return (m[this.season] || m.spring)[type] || 1;
   }
@@ -342,7 +343,7 @@ export class Ecosystem {
 
   _randomFluctuation() {
     for (const sp of Object.keys(this.population)) {
-      const noise = 1 + (Math.random() - 0.5) * 0.05;
+      const noise = 1 + (Math.random() - 0.5) * 0.16;
       this.population[sp] = Math.max(0, Math.floor(this.population[sp] * noise));
     }
   }

@@ -29,7 +29,7 @@ const state = {
   phase: 'waiting',       // waiting | playing | ended
   round: 0,
   elapsed: 0,
-  duration: 1800,         // 30分钟一局
+  duration: 900,          // 15分钟一局
   factions: [],           // [{biome, eco, score, viewers}]
   globalEvents: [],       // 最近事件队列
   scores: [],             // 历史排行榜
@@ -39,10 +39,25 @@ const state = {
   autoEventInterval: 60,  // 全局随机事件间隔(秒)
 };
 
-// ── 选两个阵营 ──
+// ── 选两个阵营（轮换制，避免重复对战） ──
+const recentMatchups = [];  // 最近的对战组合
 function pickBiomes() {
-  const shuffled = [...BIOME_POOL].sort(() => Math.random() - 0.5);
-  return shuffled.slice(0, 2);
+  // 所有可能的对战组合
+  const allPairs = [];
+  for (let i = 0; i < BIOME_POOL.length; i++) {
+    for (let j = i + 1; j < BIOME_POOL.length; j++) {
+      allPairs.push([BIOME_POOL[i], BIOME_POOL[j]]);
+    }
+  }
+  // 排除最近5局出现过的组合
+  const recentKeys = new Set(recentMatchups.map(p => p.sort().join('+')));
+  const candidates = allPairs.filter(([a, b]) => !recentKeys.has([a.id, b.id].sort().join('+')));
+  const pool = candidates.length > 0 ? candidates : allPairs;
+  const picked = pool[Math.floor(Math.random() * pool.length)];
+  // 记录到最近对战
+  recentMatchups.push([picked[0].id, picked[1].id]);
+  if (recentMatchups.length > 5) recentMatchups.shift();
+  return picked;
 }
 
 function newGame() {
